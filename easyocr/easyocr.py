@@ -74,24 +74,10 @@ characters = {
 }
 
 # first element is url path, second is file size
-model_url = {
-    'detector': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/craft_mlt_25k.zip', '2f8227d2def4037cdb3b34389dcf9ec1'),
-    'latin.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/latin.zip', 'fb91b9abf65aeeac95a172291b4a6176'),
-    'chinese.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/chinese.zip', 'dfba8e364cd98ed4fed7ad54d71e3965'),
-    'chinese_sim.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/chinese_sim.zip', '0e19a9d5902572e5237b04ee29bdb636'),
-    'japanese.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/japanese.zip', '6d891a4aad9cb7f492809515e4e9fd2e'),
-    'korean.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/korean.zip', '45b3300e0f04ce4d03dda9913b20c336'),
-    'thai.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/thai.zip', '40a06b563a2b3d7897e2d19df20dc709'),
-    'devanagari.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/devanagari.zip', 'db6b1f074fae3070f561675db908ac08'),
-    'cyrillic.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/cyrillic.zip', '5a046f7be2a4f7da6ed50740f487efa8'),
-    'arabic.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/pre-v1.1.6/arabic.zip', '993074555550e4e06a6077d55ff0449a'),
-    'tamil.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/v1.1.7/tamil.zip', '4b93972fdacdcdabe6d57097025d4dc2'),
-    'bengali.pth': ('https://github.com/JaidedAI/EasyOCR/releases/download/v1.1.8/bengali.zip', 'cea9e897e2c0576b62cbb1554997ce1c'),
-}
 
 class Reader(object):
 
-    def __init__(self, lang_list, gpu=True, model_storage_directory=None,
+    def __init__(self, model_path, detector_path, gpu=True,
                  download_enabled=True, detector=True, recognizer=True):
         """Create an EasyOCR Reader.
 
@@ -100,18 +86,13 @@ class Reader(object):
 
             gpu (bool): Enable GPU support (default)
 
-            model_storage_directory (string): Path to directory for model data. If not specified,
             models will be read from a directory as defined by the environment variable
             EASYOCR_MODULE_PATH (preferred), MODULE_PATH (if defined), or ~/.EasyOCR/.
 
             download_enabled (bool): Enabled downloading of model data via HTTP (default).
         """
+        lang_list = ['en']
         self.download_enabled = download_enabled
-
-        self.model_storage_directory = MODULE_PATH + '/model'
-        if model_storage_directory:
-            self.model_storage_directory = model_storage_directory
-        Path(self.model_storage_directory).mkdir(parents=True, exist_ok=True)
 
         if gpu is False:
             self.device = 'cpu'
@@ -215,45 +196,7 @@ class Reader(object):
         self.lang_char = set(self.lang_char).union(set(number+symbol))
         self.lang_char = ''.join(self.lang_char)
 
-        model_path = os.path.join(self.model_storage_directory, model_file)
         corrupt_msg = 'MD5 hash mismatch, possible file corruption'
-        detector_path = os.path.join(self.model_storage_directory, DETECTOR_FILENAME)
-        if os.path.isfile(detector_path) == False:
-            if not self.download_enabled:
-                raise FileNotFoundError("Missing %s and downloads disabled" % detector_path)
-            LOGGER.warning('Downloading detection model, please wait. '
-                           'This may take several minutes depending upon your network connection.')
-            download_and_unzip(model_url['detector'][0], DETECTOR_FILENAME, self.model_storage_directory)
-            assert calculate_md5(detector_path) == model_url['detector'][1], corrupt_msg
-            LOGGER.info('Download complete')
-        elif calculate_md5(detector_path) != model_url['detector'][1]:
-            if not self.download_enabled:
-                raise FileNotFoundError("MD5 mismatch for %s and downloads disabled" % detector_path)
-            LOGGER.warning(corrupt_msg)
-            os.remove(detector_path)
-            LOGGER.warning('Re-downloading the detection model, please wait. '
-                           'This may take several minutes depending upon your network connection.')
-            download_and_unzip(model_url['detector'][0], DETECTOR_FILENAME, self.model_storage_directory)
-            assert calculate_md5(detector_path) == model_url['detector'][1], corrupt_msg
-        # check model file
-        if os.path.isfile(model_path) == False:
-            if not self.download_enabled:
-                raise FileNotFoundError("Missing %s and downloads disabled" % model_path)
-            LOGGER.warning('Downloading recognition model, please wait. '
-                           'This may take several minutes depending upon your network connection.')
-            download_and_unzip(model_url[model_file][0], model_file, self.model_storage_directory)
-            assert calculate_md5(model_path) == model_url[model_file][1], corrupt_msg
-            LOGGER.info('Download complete.')
-        elif calculate_md5(model_path) != model_url[model_file][1]:
-            if not self.download_enabled:
-                raise FileNotFoundError("MD5 mismatch for %s and downloads disabled" % model_path)
-            LOGGER.warning(corrupt_msg)
-            os.remove(model_path)
-            LOGGER.warning('Re-downloading the recognition model, please wait. '
-                           'This may take several minutes depending upon your network connection.')
-            download_and_unzip(model_url[model_file][0], model_file, self.model_storage_directory)
-            assert calculate_md5(model_path) == model_url[model_file][1], corrupt_msg
-            LOGGER.info('Download complete')
         if detector:
             self.detector = get_detector(detector_path, self.device)
         if recognizer:
